@@ -72,11 +72,23 @@ static NSString *accessGroupID() {
 %end
 
 BOOL isSelf() {
-    NSArray *address = [NSThread callStackReturnAddresses];
+    NSArray *addresses = [NSThread callStackReturnAddresses];
     Dl_info info = {0};
-    if (dladdr((void *)[address[2] longLongValue], &info) == 0) return NO;
+    if (dladdr((void *)[addresses[2] longLongValue], &info) == 0) return NO;
     NSString *path = [NSString stringWithUTF8String:info.dli_fname];
-    return [path hasPrefix:NSBundle.mainBundle.bundlePath];
+    if (![path hasPrefix:NSBundle.mainBundle.bundlePath]) return NO;
+    
+    for (NSNumber *address in addresses) {
+        Dl_info frameInfo = {0};
+        if (dladdr((void *)[address longLongValue], &frameInfo) != 0) {
+            NSString *framePath = [NSString stringWithUTF8String:frameInfo.dli_fname];
+            if ([framePath containsString:@"MediaPlayer.framework"] || 
+                [framePath containsString:@"AVFoundation.framework"]) {
+                return NO;
+            }
+        }
+    }
+    return YES;
 }
 
 %hook NSBundle
